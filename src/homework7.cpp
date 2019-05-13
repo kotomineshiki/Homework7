@@ -28,7 +28,8 @@ float lastFrame = 0.0f;
 unsigned int planeVAO;
 glm::vec3 lightPos(-4.0f, 4.0f, -1.0f);
 bool IsPerspective = true;//透视投影的光照
-bool IsDepth = false;//透视投影的光照
+bool IsDepth = true;//透视投影的光照
+float near_plane = 1.0f, far_plane = 7.5f;
 int main()
 {
 
@@ -142,6 +143,8 @@ int main()
     ImGui::SliderFloat("light x", &lightPos[0], -1, 1);
     ImGui::SliderFloat("light y", &lightPos[1], -10, 10);
     ImGui::SliderFloat("light z", &lightPos[2], -1, 1);
+    ImGui::SliderFloat("far ", &far_plane, 5, 10);
+    ImGui::SliderFloat("near z", &near_plane, 0, 1);
     ImGui::Checkbox("IsPerspective", &IsPerspective);
     ImGui::Checkbox("IsDepth", &IsDepth);//是否修改深度的线性化
     ImGui::End();
@@ -164,14 +167,15 @@ int main()
     // 把场景的深度转化成贴图
     glm::mat4 lightProjection, lightView;
     glm::mat4 lightSpaceMatrix;
-    float near_plane = 1.0f, far_plane = 7.5f;
+
 
     if (/*glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS*/IsPerspective)
       lightProjection = glm::perspective(glm::radians(45.0f), (GLfloat)SHADOW_WIDTH / (GLfloat)SHADOW_HEIGHT, near_plane, far_plane);
     else {
       lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
     }
-
+    helper::SetShaderFloat(shadow_shader_program, "near_plane", near_plane);
+    helper::SetShaderFloat(shadow_shader_program, "far_plane", far_plane);
     if (IsDepth) {
       helper::SetShaderFloat(shadow_shader_program, "flag", 1.0f);
     }
@@ -263,7 +267,7 @@ void renderScene(GLuint shader)
   helper::SetShaderMat4(shader, "model", model);
   renderCube();
   model = glm::mat4(1.0f);
-  model = glm::translate(model, glm::vec3(-1.0f, 1.0f, 2.0));
+  model = glm::translate(model, glm::vec3(-1.0f, 0.0f, 2.0));
   model = glm::rotate(model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
   model = glm::scale(model, glm::vec3(0.25));
   //shader.setMat4("model", model);

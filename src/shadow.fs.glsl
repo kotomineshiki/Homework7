@@ -17,7 +17,17 @@ uniform sampler2D shadowMap;
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 
-uniform float flag;//检查最后一项优化的
+uniform float flag;//实现正交投影
+
+uniform float near_plane;
+uniform float far_plane;
+
+float LinearizeDepth(float depth)
+{
+    float z = depth * 2.0 - 1.0; // Back to NDC 
+    return (2.0 * near_plane * far_plane) / (far_plane + near_plane - z * (far_plane - near_plane));
+}
+
 
 float ShadowCalculation(vec4 fragPosLightSpace)
 {
@@ -28,13 +38,15 @@ float ShadowCalculation(vec4 fragPosLightSpace)
     float closestDepth = texture(shadowMap, projCoords.xy).r; 
     //获得当前片段在光照下的深度值 
     float currentDepth = projCoords.z;
-
+	
+	closestDepth=flag>0? closestDepth:LinearizeDepth(closestDepth)/far_plane;
+	currentDepth=flag>0? currentDepth:LinearizeDepth(currentDepth)/far_plane;
 	//注意此时对应的大概是正交投影??
 
 	vec3 normal = normalize(fs_in.Normal);//得到当前片元的法向量
     vec3 lightDir = normalize(lightPos - fs_in.FragPos);//得到入射方向
 	float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);//平移
-	
+	bias=flag>0? bias:LinearizeDepth(bias)/far_plane;
 	float shadow = 0.0;//PCF
     vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
     for(int x = -1; x <= 1; ++x)//中值滤波卷积
@@ -42,12 +54,13 @@ float ShadowCalculation(vec4 fragPosLightSpace)
         for(int y = -1; y <= 1; ++y)
         {
             float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
+			pcfDepth=flag>0? pcfDepth:LinearizeDepth(pcfDepth)/far_plane;
             shadow += currentDepth - bias > pcfDepth  ? 1.0 : 0.0;//比较两个深度值谁大，大的是阴影
         }    
     }
     shadow /= 9.0;//去中值
 	
-	if(flag>0&&projCoords.z > 1.0)
+	if(projCoords.z > 1.0)
         shadow = 0.0;
     return shadow;
 }
